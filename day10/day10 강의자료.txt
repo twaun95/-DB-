@@ -1,0 +1,221 @@
+-- 임시테이블은 특정 SESSION에서만 테이블에 INSERT/UPDATE한 데이타의 결과를 볼 수 있는 테이블 
+-- COMMIT을 하면 작업한 결과 데이타가 자동으로 삭제된다.
+CREATE GLOBAL TEMPORARY TABLE TEST_TEMP2 (ID NUMBER(10), NAME VARCHAR2(20)) ON COMMIT DELETE ROWS;
+INSERT INTO TEST_TEMP2 VALUES (10,'A');
+INSERT INTO TEST_TEMP2 VALUES (20,'B');
+SELECT * FROM TEST_TEMP2;
+COMMIT;  -- 임시 테이블의 데이타가 자동 삭제
+SELECT * FROM TEST_TEMP2;
+
+-- 임시테이블은 특정 SESSION에서만 테이블에 INSERT/UPDATE한 데이타의 결과를 볼 수 있는 테이블 
+-- COMMIT을 하면 작업 결과 데이타가 자동으로 삭제되지는 않지만 여전히 결과 데이타는 현재 작업하고 있는 세션(CONNECTION)에서만 조회
+-- 현재 CONNECTION을 종료하게 되면 임시 테이블의 결과 데이타를 자동으로 삭제된다.
+CREATE GLOBAL TEMPORARY TABLE TEST_TEMP3 (ID NUMBER(10), NAME VARCHAR2(20)) ON COMMIT PRESERVE ROWS;
+INSERT INTO TEST_TEMP3 VALUES (10,'A');
+INSERT INTO TEST_TEMP3 VALUES (20,'B');
+SELECT * FROM TEST_TEMP3;
+COMMIT; -- 자동 삭제 되지 않고
+SELECT * FROM TEST_TEMP3;
+-- DB CONNECT를  종료할 때 데이타가 자동으로 삭제  
+
+
+EXTERNAL TABLE을 만들기 위한 작업
+
+c:\ext\test.dat
+2354, 2264, 13.21, 150
+2355, 2289, 46.23, 200
+2355, 2264, 50.00, 100
+
+1. SYS USER가 작업. 
+CREATE DIRECTORY TEST_DIR AS 'C:\EXT';  -- 데이타 파일이 저장되어 있는 DIRECTORY를 가리키는 객체(TEST_DIR) 생성
+GRANT READ ON DIRECTORY TEST_DIR TO HR;  -- HR USER가 TEST_DIR이 가리키는 디렉토리에 있는 파일을 읽을 수 있는 권한 생성
+GRANT WRITE ON DIRECTORY TEST_DIR TO HR;  -- HR USER가 TEST_DIR이 가리키는 디렉토리에 있는 파일을 만들고 데이타를 입력할 수 있는 권한 생성
+
+-- EXTERNAL TABLE 생성 2번째 작업
+-- EXTERNAL TABLE은 데이타를 외부의 파일에서 읽어서 가져와서 조회할 수 있게 해 주는 테이블
+CREATE TABLE TEST_EXT 
+(category_id number(12),book_id number(6),book_price number(8,2),quantity number(8))
+ORGANIZATION EXTERNAL  -- EXTERNAL TABLE 알려주는 키워드
+(TYPE ORACLE_LOADER
+DEFAULT DIRECTORY TEST_DIR
+ACCESS PARAMETERS (RECORDS DELIMITED BY NEWLINE
+FIELDS TERMINATED BY ',')
+LOCATION ('test.dat')
+)
+REJECT LIMIT UNLIMITED;
+
+SELECT * FROM TEST_EXT;
+
+-- 아래의 방법으로 EXTERNAL TABLE을 만들면 아래에 있는 SELECT문에 의해 조회된 결과가 
+-- 'emp_ext1.exp','emp_ext2.exp' 파일로 만들어지는데 조회되는 데이타가 적은 경우에는 하나의 
+-- 파일만 생성될 수 있다. 
+-- 'emp_ext1.exp','emp_ext2.exp' 파일안에는 SELECT문으로 조회된 결과 저장이 되는데 TYPE ORACLE_DATAPUMP 로 되어 있기 때문에 
+-- 'emp_ext1.exp','emp_ext2.exp' 파일들은 TEXT FILE이 아니라 BINARY FILE로 만들어진다. 
+-- 'emp_ext1.exp','emp_ext2.exp' 파일들은 데이타를 다른 데이타베이스로 이동을 시킬 때 사용할 수 있는 파일.
+
+CREATE TABLE EMP_EXT (DEPT_NAME,EMPID,NAME)
+ORGANIZATION EXTERNAL(
+TYPE ORACLE_DATAPUMP  --  'emp_ext1.exp','emp_ext2.exp' 파일들은 TEXT FILE이 아니라 BINARY FILE로 만들어진다.
+DEFAULT DIRECTORY TEST_DIR
+LOCATION ('emp_ext1.exp','emp_ext2.exp'))
+PARALLEL
+AS
+SELECT D.DEPARTMENT_NAME, E.EMPLOYEE_ID, E.LAST_NAME
+FROM DEPARTMENTS D, EMPLOYEES E
+WHERE D.DEPARTMENT_ID=30 AND D.DEPARTMENT_ID=E.DEPARTMENT_ID;
+
+SELECT * FROM EMP_EXT;  -- 이 SELECT문은 emp_ext1.exp 안에 저장되어 있는 데이타를 조회하게 된다. 
+
+** EXTERNAL TABLE은 SELECT만 가능 (INSERT/UPDATE/DELETE 명령은 사용할 수 없다)
+
+
+-- IN LINE VIEW (FROM절에서 사용되는 SUBQUERY)
+-- IN LINE VIEW를 사용하면 검색하는 데이타의 범위를 줄여주는 효과가 있어서 전반적으로 SELECT의 실행속도가 빨라질 수 있다, 
+<<A>>  -- IN LINE VIEW의 예제
+SELECT D.DEPARTMENT_NAME, TEST_EMP.LAST_NAME, TEST_EMP.DEPARTMENT_ID
+FROM DEPARTMENTS D, (SELECT EMPLOYEE_ID, LAST_NAME, SALARY, DEPARTMENT_ID FROM EMPLOYEES WHERE DEPARTMENT_ID IN (20,30)) TEST_EMP
+WHERE D.DEPARTMENT_ID = TEST_EMP.DEPARTMENT_ID;
+
+<<B>>
+SELECT D.DEPARTMENT_NAME, E.LAST_NAME, E.DEPARTMENT_ID
+FROM DEPARTMENTS D, EMPLOYEES E
+WHERE D.DEPARTMENT_ID = E.DEPARTMENT_ID AND D.DEPARTMENT_ID IN (20,30);
+
+SELECT D.LOCATION_ID, D.department_name, L.city, L.LOCATION_ID
+FROM departments D, LOCATIONS L, COUNTRIES C, REGIONS R
+WHERE R.REGION_NAME='Europe' AND R.REGION_ID=C.REGION_ID AND C.COUNTRY_ID = L.COUNTRY_ID
+AND L.LOCATION_ID = D.LOCATION_ID;
+
+SELECT D.LOCATION_ID, D.department_name, L.city, L.LOCATION_ID
+FROM departments D JOIN LOCATIONS L
+ON (L.LOCATION_ID = D.LOCATION_ID)
+JOIN COUNTRIES C
+ON (C.COUNTRY_ID = L.COUNTRY_ID)
+JOIN REGIONS R
+ON (R.REGION_ID=C.REGION_ID)
+WHERE R.REGION_NAME='Europe';
+
+-- IN LINE VIEW의 예제
+SELECT D.LOCATION_ID, D.department_name, EU_CITY.city, EU_CITY.LOCATION_ID
+FROM departments D,(SELECT l.location_id, l.city, l.country_id FROM locations l JOIN countries c ON(l.country_id = c.country_id)
+                    JOIN regions USING(region_id) WHERE region_name = 'Europe') EU_CITY
+WHERE D.LOCATION_ID = EU_CITY.LOCATION_ID;
+
+-- IN LINE VIEW 예제 
+SET PAGESIZE 1000
+SELECT E.EMPLOYEE_ID, E.LAST_NAME, E.DEPARTMENT_ID, E.SALARY, SUM_EMP.DEPARTMENT_ID SUM_DEPT, SUM_EMP.SUM_SAL SUMSAL
+FROM EMPLOYEES E, (SELECT DEPARTMENT_ID, SUM(SALARY) SUM_SAL FROM EMPLOYEES GROUP BY DEPARTMENT_ID) SUM_EMP
+WHERE E.DEPARTMENT_ID = SUM_EMP.DEPARTMENT_ID 
+ORDER BY E.DEPARTMENT_ID; 
+
+
+-- SCALAR SUBQUERY : SUB QUERY의 결과가 하나의 컬럼에 대해서 하나의 값이 결과로 나오는 SUBQUERY
+COL LOCATION FORMAT A15
+SELECT e.employee_id, e.last_name, e.department_id,
+(CASE WHEN e.department_id = (SELECT d.department_id FROM departments d WHERE location_id = 1800)
+THEN 'Canada' ELSE 'USA' END) location
+FROM employees e
+ORDER BY E.DEPARTMENT_ID;
+
+-- SCALAR SUBQUERY 이면서 동시에 CORELATED SUBQUERY (상관 서브쿼리)
+select department_id, department_name, (select count(*) from employees e where e.department_id = d.department_id) as emp_count
+from departments d;
+
+-- CORELATED SUBQUERY (상관서브쿼리)
+-- SUBQUERY의 밖에 있는 테이블의 데이타가 SUBQUERY안의 조건절에 들어가서 사용이 되면  CORELATED SUBQUERY가 된다.
+CREATE TABLE EMP_SUB 
+AS SELECT EMPLOYEE_ID, DEPARTMENT_ID FROM EMPLOYEES WHERE DEPARTMENT_ID IN (10,20);
+SELECT * FROM EMP_SUB;
+ALTER TABLE EMP_SUB ADD (DEPT_NAME VARCHAR2(20));
+SELECT * FROM EMP_SUB;
+
+UPDATE EMP_SUB S SET DEPT_NAME  = (SELECT D.DEPARTMENT_NAME FROM DEPARTMENTS D WHERE D.DEPARTMENT_ID = S.DEPARTMENT_ID);
+SELECT * FROM EMP_SUB;
+
+SELECT DEPARTMENT_NAME FROM DEPARTMENTS WHERE DEPARTMENT_ID = 10;
+SELECT DEPARTMENT_NAME FROM DEPARTMENTS WHERE DEPARTMENT_ID = 20;
+
+SELECT EMPLOYEE_ID, LAST_NAME, MANAGER_ID 
+FROM EMPLOYEES 
+WHERE DEPARTMENT_ID IN (20,30,40);
+
+SELECT E.EMPLOYEE_ID, E.LAST_NAME, M.EMPLOYEE_ID "Manager ID", M.LAST_NAME "Manager Name" 
+FROM EMPLOYEES E, EMPLOYEES M
+WHERE E.MANAGER_ID = M.EMPLOYEE_ID;
+
+-- 매니저 역할을 하고 사원들을 검색 
+-- EXISTS를 이용하면 좀 더 빠르게 검색이 될 수 있다. (실행속도가 빠를 수 있다)
+SELECT employee_id, last_name, job_id, department_id
+FROM employees outer
+WHERE EXISTS ( SELECT 'A'
+FROM employees
+WHERE manager_id =
+outer.employee_id);
+
+SELECT EMPLOYEE_ID,LAST_NAME
+FROM EMPLOYEES 
+WHERE EMPLOYEE_ID IN (SELECT MANAGER_ID FROM EMPLOYEES);
+
+
+-- SELF JOIN 
+SELECT E.EMPLOYEE_ID, E.LAST_NAME, M.EMPLOYEE_ID "Manager ID", M.LAST_NAME "Manager Name" 
+FROM EMPLOYEES E, EMPLOYEES M
+WHERE E.MANAGER_ID = M.EMPLOYEE_ID AND E.DEPARTMENT_ID IN (10,20,30);
+
+SELECT E.EMPLOYEE_ID, E.LAST_NAME, M.EMPLOYEE_ID "Manager ID", M.LAST_NAME "Manager Name" 
+FROM EMPLOYEES E, EMPLOYEES M
+WHERE E.MANAGER_ID = (SELECT M.EMPLOYEE_ID FROM EMPLOYEES M
+                      WHERE M.EMPLOYEE_ID = E.MANAGER_ID)
+AND E.MANAGER_ID = M.EMPLOYEE_ID AND E.DEPARTMENT_ID IN (10,20,30);
+
+
+SELECT department_id, employee_id, salary
+FROM EMPLOYEES e
+WHERE 1 = (SELECT COUNT(DISTINCT salary) FROM EMPLOYEES WHERE e.department_id = department_id AND e.salary <= salary)
+
+SELECT department_id,COUNT(*) NUM_EMP
+FROM EMPLOYEES
+GROUP BY department_id
+ORDER BY DEPARTMENT_ID;
+
+WITH CNT_DEPT AS  -- 가상 테이블 (데이타베이스 생성되는 테이블이 아니라 SELECT 실행시에만 임시로 만들어져서 사용되는 임시 테이블) 
+(
+SELECT department_id,
+COUNT(*) NUM_EMP
+FROM EMPLOYEES
+GROUP BY department_id
+)
+SELECT E.employee_id, E.DEPARTMENT_ID, E.SALARY, E.SALARY/C.NUM_EMP, C.NUM_EMP, C.DEPARTMENT_ID
+FROM EMPLOYEES E
+JOIN CNT_DEPT C
+ON (e.department_id = c.department_id)
+ORDER BY E.DEPARTMENT_ID;
+
+DESC CNT_DEPT
+
+SELECT E.employee_id, E.DEPARTMENT_ID, E.SALARY, (E.SALARY/C.NUM_EMP) COUNT_NUM, C.NUM_EMP, C.DEPARTMENT_ID
+FROM EMPLOYEES E JOIN (SELECT department_id, COUNT(*) NUM_EMP FROM EMPLOYEES GROUP BY department_id) C
+ON (e.department_id = c.department_id)
+ORDER BY E.DEPARTMENT_ID;
+
+
+-- CORELATED SUBQUERY 이면서  SCALAR SUBQUERY, SINGLE ROW SUBQUERY
+select department_id, department_name,
+(select count(*)
+from employees e
+where e.department_id = d.department_id) as emp_count
+from departments d;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
