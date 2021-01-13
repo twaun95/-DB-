@@ -1,0 +1,432 @@
+SET PAGESIZE 1000
+
+-- MULTIPLE COLUMN SUBQUERY, MULTIPLE ROW SUBQUERY
+SELECT last_name, department_id, salary, COMMISSION_PCT
+FROM employees
+WHERE (salary, NVL(department_id,0)) IN
+(SELECT salary, NVL(department_id,0)
+FROM employees
+WHERE commission_pct IS NOT NULL)
+
+
+-- MULTIPLE COLUMN SUBQUERY, MULTIPLE ROW SUBQUERY
+SELECT e.last_name, d.department_name, e.salary
+FROM employees e JOIN departments d
+ON e.department_id = d.department_id
+AND (salary, job_id) IN
+(SELECT e.salary, e.job_id
+FROM employees e JOIN departments d
+ON e.department_id = d.department_id
+AND d.location_id = 1700);
+
+-- MULTIPLE COLUMN SUBQUERY, SINGLE ROW SUBQUERY
+SELECT last_name, hire_date, salary, manager_id
+FROM employees
+WHERE (salary, manager_id) IN (SELECT salary, manager_id FROM employees WHERE last_name = 'Kochhar')
+AND last_name != 'Kochhar';
+
+SELECT last_name, hire_date, salary, manager_id
+FROM employees
+WHERE (salary, manager_id) = (SELECT salary, manager_id FROM employees WHERE last_name = 'Kochhar')
+AND last_name != 'Kochhar';
+
+--MULTIPLE ROW SUBQUERY
+SELECT last_name, job_id, salary
+FROM employees
+WHERE salary > ALL (SELECT salary FROM employees WHERE job_id = 'SA_MAN')
+ORDER BY salary DESC;
+
+
+
+SELECT employee_id, last_name, department_id
+FROM employees
+WHERE department_id IN (SELECT department_id FROM departments
+                         WHERE location_id IN (SELECT location_id FROM locations WHERE city LIKE 'T%'));
+
+
+SELECT e.last_name ename, e.salary salary,
+e.department_id deptno, ROUND(AVG(a.salary),2)
+dept_avg
+FROM employees e, employees a
+WHERE e.department_id = a.department_id
+AND e.salary > (SELECT AVG(salary)
+FROM employees
+WHERE department_id = e.department_id )  -- CORRELATED SUBQUERY , SINGLE ROW SUBQUERY
+GROUP BY e.last_name, e.salary, e.department_id
+ORDER BY AVG(a.salary);
+
+SELECT outer.last_name
+FROM employees outer
+WHERE NOT EXISTS (SELECT 'X'
+FROM employees inner
+WHERE inner.manager_id =
+outer.employee_id);
+
+SELECT outer.last_name
+FROM employees outer
+WHERE EXISTS (SELECT 'X'
+FROM employees inner
+WHERE inner.manager_id =
+outer.employee_id);
+
+SELECT last_name
+FROM employees outer
+WHERE EXISTS (SELECT 'X'
+FROM employees inner
+WHERE inner.department_id =
+outer.department_id
+AND inner.hire_date > outer.hire_date
+AND inner.salary > outer.salary)
+AND last_name = 'Olson';
+
+SET LINESIZE 1000
+ALTER SESSION SET NLS_DATE_FORMAT='YYYY-MM-DD';
+SELECT e.last_name, e.department_id, e.salary, e.hire_date, e1.last_name, e1.salary, e1.hire_date, e1.department_id
+FROM employees e, employees e1
+WHERE e1.department_id = e.department_id
+AND e1.hire_date > e.hire_date
+AND e1.salary > e.salary AND e.last_name = 'Olson';
+
+-- SCALAR SUBQUERY , CORRELATED SUBQUERY
+SELECT employee_id, last_name,(SELECT department_name FROM departments d WHERE e.department_id = d.department_id ) department
+FROM employees e
+ORDER BY department;
+
+
+SELECT employee_id, last_name, (SELECT EMPLOYEE_ID||','||LAST_NAME FROM EMPLOYEES M WHERE E.MANAGER_ID=M.EMPLOYEE_ID) "Manager ID"
+FROM EMPLOYEES E;
+
+SELECT employee_id, last_name, (SELECT AVG(SALARY) FROM EMPLOYEES E2 WHERE E.JOB_ID = E2.JOB_ID) "Job AVG",
+(SELECT AVG(SALARY) FROM EMPLOYEES E2 WHERE E.DEPARTMENT_ID = E2.DEPARTMENT_ID) "DEPT AVG"
+FROM EMPLOYEES E;
+
+
+-- SCALAR SUBQUERY는 하나의 COLUMN을 조회하고 하나의 ROW(DATA)를 RETURN하는 SUBQUERY이다.
+-- SINGLE ROW SUBQUERY는 하나 이상의 COLUMN을 조회하고 하나의 ROW(DATA)를 RETURN하는 SUBQUERY이다.
+
+-- INSERT할 때 SUBQUERY 사용하는 경우 
+CREATE TABLE INS_EMP 
+AS SELECT EMPLOYEE_ID, LAST_NAME, SALARY, DEPARTMENT_ID FROM EMPLOYEES WHERE DEPARTMENT_ID IN (10,20,30);
+
+SELECT * FROM INS_EMP;
+
+INSERT INTO (SELECT * FROM INS_EMP WHERE DEPARTMENT_ID = 20)
+VALUES (203,'A',5000,30);
+
+SELECT * FROM INS_EMP;
+
+INSERT INTO (SELECT EMPLOYEE_ID,LAST_NAME,DEPARTMENT_ID FROM INS_EMP WHERE DEPARTMENT_ID = 20)
+VALUES (204,'B',40);
+
+SELECT * FROM INS_EMP;
+
+INSERT INTO (SELECT EMPLOYEE_ID,LAST_NAME,DEPARTMENT_ID FROM INS_EMP WHERE DEPARTMENT_ID = 20 WITH CHECK OPTION)
+VALUES (205,'C',20);
+
+SELECT * FROM INS_EMP;
+
+-- INSERT 문장에서 테이블 대신 사용한 SUBQUERY의 경우는 가상의 테이블을 만들어서 사용하는 개념인데 
+-- 결론적으로 INSERT한 데이타는 본래의 테이블(INS_EMP)에 들어가게 된다.
+-- 그런데 SUBQUERY에 WITH CHECK OPTION 이라는 OPTION을 같이 사용하면 
+-- SUBQUERY를 만들 때 사용한 조건 (DEPARTMENT_ID=20)을 INSERT할 때 CHECK를 하게 되어서 
+-- 결과적으로는 20번부서에 관련된 데이타만 INSERT가 가능하게 된다.
+
+INSERT INTO (SELECT EMPLOYEE_ID,LAST_NAME,DEPARTMENT_ID FROM INS_EMP WHERE DEPARTMENT_ID = 20 WITH CHECK OPTION)
+VALUES (206,'D',30);
+
+-- UPDATE에서 CORRELATED SUBQUERY를 사용하는 예
+-- 각 사원이 가지고 있는 부서번호를 가지고 부서 테이블에서 부서이름을 조회해서 사원 테이블의 부서이름을 업데이트 
+DESC INS_EMP
+ALTER TABLE INS_EMP ADD (DEPTNAME  VARCHAR2(20));
+DESC INS_EMP
+SELECT * FROM INS_EMP;
+UPDATE INS_EMP A
+SET DEPTNAME = (SELECT D.DEPARTMENT_NAME FROM DEPARTMENTS D WHERE D.DEPARTMENT_ID = A.DEPARTMENT_ID);
+SELECT * FROM INS_EMP;
+
+-- DELETE 에서 SUBQUERY를 사용하는 예
+SELECT * FROM INS_EMP;
+
+DELETE FROM INS_EMP E1 
+WHERE E1.SALARY >= (SELECT AVG(E2.SALARY) FROM EMPLOYEES E2 WHERE E2.DEPARTMENT_ID = E1.DEPARTMENT_ID);
+
+ROLLBACK;  -- COMMIT을 하기전에는 ROLLBACK을 해서 작업 취소 가능 
+
+
+-- 다중 테이블 INSERT 작업 
+-- 무조건 INSERT ALL
+CREATE TABLE sal_history (EMP_ID NUMBER(10), H_DATE  DATE, SALARY NUMBER(10)); 
+CREATE TABLE mgr_history (EMP_ID NUMBER(10), MANAGER_ID NUMBER(10), SALARY NUMBER(10)); 
+
+INSERT ALL  -- SUBQUERY에서 조회한 데이타들을 SAL_HISTORY와 MGR_HISTORY 테이블에 모두 같이 입력해 준다.
+INTO sal_history VALUES(EMPID,HIREDATE,SAL)
+INTO mgr_history VALUES(EMPID,MGR,SAL)
+SELECT employee_id EMPID, hire_date HIREDATE,
+salary SAL, manager_id MGR
+FROM employees
+WHERE employee_id > 200;
+
+SELECT * FROM SAL_HISTORY;
+SELECT * FROM MGR_HISTORY;
+
+-- 조건부 INSERT ALL
+
+NUMBER(5,3) => 12.345
+
+CREATE TABLE emp_history (EMP_ID NUMBER(6), H_DATE  DATE, SALARY NUMBER(8,2)); 
+CREATE TABLE emp_sales (EMP_ID NUMBER(6), COMMISSION NUMBER(2,2), SALARY NUMBER(8,2)); 
+
+DESC EMPLOYEES
+
+SELECT SYSDATE FROM DUAL; 
+
+INSERT ALL
+WHEN HIREDATE < '2005-01-01' THEN
+INTO emp_history VALUES(EMPID,HIREDATE,SAL)
+WHEN COMM IS NOT NULL THEN
+INTO emp_sales VALUES(EMPID,COMM,SAL)
+SELECT employee_id EMPID, hire_date HIREDATE,
+salary SAL, commission_pct COMM
+FROM employees;
+
+SELECT * FROM EMP_HISTORY;
+SELECT * FROM EMP_SALES;
+
+-- 조건부 INSERT FIRST
+DESC EMPLOYEES
+
+CREATE TABLE SAL_LOW (EMPID NUMBER(6), NAME VARCHAR2(25), SAL NUMBER(8,2));
+CREATE TABLE SAL_MID (EMPID NUMBER(6), NAME VARCHAR2(25), SAL NUMBER(8,2));
+CREATE TABLE SAL_HIGH (EMPID NUMBER(6), NAME VARCHAR2(25), SAL NUMBER(8,2));
+
+INSERT FIRST 
+WHEN salary < 5000 THEN
+INTO sal_low VALUES (employee_id, last_name, salary)
+WHEN salary between 5000 and 10000 THEN
+INTO sal_mid VALUES (employee_id, last_name, salary)
+ELSE
+INTO sal_high VALUES (employee_id, last_name, salary)
+SELECT employee_id, last_name, salary
+FROM employees;
+
+SELECT * FROM SAL_LOW;
+SELECT * FROM SAL_MID;
+SELECT * FROM SAL_HIGH;
+
+--피벗팅(PIVOT) INSERT
+CREATE TABLE sales_source_data 
+(EMPLOYEE_ID NUMBER(6), week_id  NUMBER(3), sales_MON  NUMBER(8), sales_TUE NUMBER(8),
+ sales_WED  NUMBER(8), sales_THUR  NUMBER(8),sales_FRI NUMBER(8)); 
+ 
+INSERT INTO sales_source_data
+VALUES (176,6,2000,3000,4000,5000,6000);
+COMMIT;
+
+SELECT * FROM sales_source_data;
+
+CREATE TABLE SALES_INFO 
+(EMPID NUMBER(8), WEEK NUMBER(3), SALES  NUMBER(10)); 
+
+INSERT ALL
+INTO sales_info VALUES (employee_id,week_id,sales_MON)
+INTO sales_info VALUES (employee_id,week_id,sales_TUE)
+INTO sales_info VALUES (employee_id,week_id,sales_WED)
+INTO sales_info VALUES (employee_id,week_id,sales_THUR)
+INTO sales_info VALUES (employee_id,week_id, sales_FRI)
+SELECT EMPLOYEE_ID, week_id, sales_MON, sales_TUE,
+sales_WED, sales_THUR,sales_FRI
+FROM sales_source_data;
+
+SELECT * FROM SALES_INFO;
+
+-- MERGE 문
+DROP TABLE EMP1;
+CREATE TABLE EMP1 
+AS SELECT EMPLOYEE_ID EMPID, LAST_NAME NAME, DEPARTMENT_ID DEPTID 
+   FROM EMPLOYEES WHERE EMPLOYEE_ID IN (200,201,202,203,204);
+   
+SELECT * FROM EMP1;
+
+DROP TABLE EMP2;
+CREATE TABLE EMP2
+AS SELECT EMPLOYEE_ID EMPID, LAST_NAME NAME, DEPARTMENT_ID DEPTID 
+   FROM EMPLOYEES WHERE EMPLOYEE_ID IN (201,203,204,205,206);
+
+SELECT * FROM EMP2;
+
+-- EMP2 TABLE과 EMP1 TABLE에 있는 데이타를 비교해서 
+-- EMP2 에는 존재하는데 EMP1에 없는 데이타의 경우는 EMP1에 EMP2에 있는 데이타를 입력(INSERT)해 주고 
+-- EMP2 에도 존재하고 EMP1 테이블에도 있는 데이타의 경우는 EMP2에 있는 데이타로 EMP1에 업데이트를 해준다 
+-- EMP2 에 있는 데이타중에서 일부 데이타는 E1으로 COPY되지 않도록 한다 (DELETE 표현)
+-- EMP2에 있는 데이타를 기준으로 해서 EMP1에 있는 데이타를 똑같이 해 주겠다.
+
+MERGE INTO EMP1 E1
+USING (SELECT * FROM EMP2) E2
+ON (E1.EMPID = E2.EMPID)
+WHEN MATCHED THEN -- E1 테이블에도 있고 E2 테이블에도 있는 데이타인 경우에는 E2에 있는 데이타를 기준으로 E1에 업데이트해라
+UPDATE SET
+E1.NAME = e2.NAME, E1.DEPTID=E2.DEPTID
+DELETE WHERE (E2.EMPID = 201)  -- 201번 사원 데이타는 E2에서 E1으로 COPY하지 마라.
+WHEN NOT MATCHED THEN -- E1 테이블에 없고 E2 테이블에만 있는 데이타는 E2 테이블에 있는 데이타를 가지고 E1에 INSERT해 줘라 
+INSERT VALUES(E2.EMPID, E2.NAME, E2.DEPTID);
+
+-- E1에만 있는 데이타들은 그대로 유지가 된다. 
+
+SELECT * FROM EMP1;
+SELECT * FROM EMP2;
+
+-- FLASHBACK QUERY
+SELECT CURRENT_TIMESTAMP FROM DUAL;
+CREATE TABLE TEST_FLASH (ID NUMBER(10));
+INSERT INTO TEST_FLASH VALUES (100);
+COMMIT;
+SELECT * FROM TEST_FLASH;
+SELECT CURRENT_TIMESTAMP FROM DUAL; 
+UPDATE TEST_FLASH SET ID= 200; --21/01/13 15:30:46
+COMMIT;
+SELECT CURRENT_TIMESTAMP FROM DUAL; -- 21/01/13 15:32:42
+UPDATE TEST_FLASH SET ID= 300; 
+COMMIT;
+SELECT CURRENT_TIMESTAMP FROM DUAL; -- 21/01/13 15:34:00
+UPDATE TEST_FLASH SET ID= 400; 
+COMMIT;
+-- 2021-01-13 15:30:00 시간대에 데이타 조회
+-- FLASHBACK QUERY (특정 과거의 시간에 존재했던 데이타를 조회)
+SELECT * FROM TEST_FLASH AS OF TIMESTAMP TO_TIMESTAMP('2021-01-13 15:34:00', 'YYYY-MM-DD HH24:MI:SS');
+
+-- 사번이 200번 사원의 급여가 2021-01-13 10:34:00 시간대에서 어떤 값을 가지고 있었는지 조회가능 
+SELECT SALARY FROM EMPLOYEES  AS OF TIMESTAMP TO_TIMESTAMP('2021-01-13 10:34:00', 'YYYY-MM-DD HH24:MI:SS')
+WHERE EMPLOYEE_ID=200;
+
+-- FLASHBACK VERSION QUERY  -- 데이타 변경에 대한 이력정보를 조회하는 QUERY
+SELECT CURRENT_TIMESTAMP FROM DUAL;  -- 21/01/13 15:45:31
+UPDATE EMPLOYEES SET SALARY = 5555 WHERE EMPLOYEE_ID =200;
+COMMIT;
+SELECT CURRENT_TIMESTAMP FROM DUAL;  -- 21/01/13 15:46:42
+UPDATE EMPLOYEES SET SALARY = 3333 WHERE EMPLOYEE_ID =200;
+COMMIT;
+SELECT CURRENT_TIMESTAMP FROM DUAL;  -- 21/01/13 15:47:30
+UPDATE EMPLOYEES SET SALARY = 9999 WHERE EMPLOYEE_ID =200;
+COMMIT;
+
+SELECT  versions_starttime, versions_endtime,versions_operation,EMPLOYEE_ID, salary  
+  FROM employees 
+  VERSIONS BETWEEN TIMESTAMP 
+      TO_TIMESTAMP('2021-01-13 15:40:00', 'YYYY-MM-DD HH24:MI:SS')
+  AND TO_TIMESTAMP('2021-01-13 15:48:00', 'YYYY-MM-DD HH24:MI:SS')
+  WHERE EMPLOYEE_ID=200;
+
+-- FLASHBACK DROP TABLE 
+DROP TABLE TEST_FLASH;
+SELECT * FROM TEST_FLASH;
+FLASHBACK TABLE TEST_FLASH TO BEFORE DROP; -- DROP한 테이블을 다시 복원
+SELECT * FROM TEST_FLASH;
+DROP TABLE TEST_FLASH; 
+SHOW RECYCLEBIN   -- 휴지통 기능을 통해  DROP된 테이블들을 볼 수 있다.
+FLASHBACK TABLE TEST_FLASH TO BEFORE DROP; 
+PURGE RECYCLEBIN  -- 휴지통을 비우기 
+SHOW RECYCLEBIN
+DROP TABLE TEST_FLASH PURGE;  -- 휴지통에 들어가지 않고 바로 삭제.
+FLASHBACK TABLE TEST_FLASH TO BEFORE DROP; -- 휴지통에 들어가 있지 않기 때문에 다시 복원할 수 없다.
+
+-- 시간 데이타 관리 
+SELECT CURRENT_TIMESTAMP FROM DUAL;
+
+ALTER SESSION SET TIME_ZONE = '-05:00';  -- 현재 시간대를 -5:00 로 변경하겠다.
+SELECT CURRENT_TIMESTAMP FROM DUAL; -- 변경된 시간대에 맞추어서 현재 날짜와 시간을 보여준다.
+SELECT CURRENT_DATE FROM DUAL;
+SELECT LOCALTIMESTAMP FROM DUAL;
+
+ALTER SESSION SET TIME_ZONE = local;  -- 현재 SQL을 실행하고 있는 사용자의 컴퓨터에 샛업되어 있는 시간대로 현재 시간대를 변경 
+SELECT CURRENT_TIMESTAMP FROM DUAL;
+
+ALTER SESSION SET TIME_ZONE = dbtimezone;  -- 사용하는 데이타베이스가 설치되어 있는 시스템의 시간대를 현재 시간대로 변경
+SELECT CURRENT_TIMESTAMP FROM DUAL;
+
+ALTER SESSION SET TIME_ZONE = 'America/New_York';
+SELECT CURRENT_TIMESTAMP FROM DUAL;
+
+SELECT DBTIMEZONE FROM DUAL;
+SELECT SESSIONTIMEZONE FROM DUAL; --현재 SQL을 실행하고 있는 사용자의 컴퓨터에 샛업되어 있는 시간대
+
+
+CREATE TABLE TIME_TABLE 
+(TIME1  TIMESTAMP, TIME2  TIMESTAMP WITH TIME ZONE, TIME3 TIMESTAMP WITH LOCAL TIME ZONE);
+DESC TIME_TABLE
+
+SELECT CURRENT_TIMESTAMP FROM DUAL;
+
+INSERT INTO TIME_TABLE (TIME1,TIME2,TIME3)
+VALUES (CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+SELECT TIME1 FROM TIME_TABLE; 
+SELECT TIME2 FROM TIME_TABLE; 
+SELECT TIME3 FROM TIME_TABLE; 
+
+ALTER SESSION SET TIME_ZONE = '-4:00';
+SELECT CURRENT_TIMESTAMP FROM DUAL;
+SELECT TIME1 FROM TIME_TABLE; 
+SELECT TIME2 FROM TIME_TABLE; 
+SELECT TIME3 FROM TIME_TABLE; 
+
+-- TIMESTAMP WITH LOCAL TIME ZONE 데이타 타입으로 잡힌 컬럼에 날짜와 시간은 시간대의 변화에 따라 날짜와 시간이 같이 변화해서 보이는 결과
+
+-- EXTRACT 함수
+SELECT last_name, hire_date,
+EXTRACT (MONTH FROM HIRE_DATE)
+FROM employees
+WHERE manager_id = 100;
+
+SELECT last_name, hire_date,
+EXTRACT (YEAR FROM HIRE_DATE)
+FROM employees
+WHERE manager_id = 100;
+
+SELECT last_name, hire_date,
+EXTRACT (DAY FROM HIRE_DATE)
+FROM employees
+WHERE manager_id = 100;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
