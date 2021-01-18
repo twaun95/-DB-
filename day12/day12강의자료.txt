@@ -1,0 +1,554 @@
+SET SERVEROUTPUT ON
+
+DECLARE
+v_event VARCHAR2(15);
+BEGIN
+v_event := q'!Father's day!';
+DBMS_OUTPUT.PUT_LINE('3rd Sunday in June is : '|| v_event );
+v_event := q'[Mother's day]';
+DBMS_OUTPUT.PUT_LINE('2nd Sunday in May is : '|| v_event );
+END;
+/
+
+DECLARE
+employee_id NUMBER(6);
+BEGIN
+SELECT employee_id INTO employee_id
+FROM employees
+WHERE last_name = 'Kochhar';
+DBMS_OUTPUT.PUT_LINE('RESULT=> '||employee_id);
+END;
+/
+
+DECLARE
+v_employee_id  employees.employee_id%type;
+BEGIN
+SELECT employee_id INTO v_employee_id
+FROM employees
+WHERE last_name = 'Kochhar';
+DBMS_OUTPUT.PUT_LINE('RESULT=> '||v_employee_id);
+END;
+/
+
+DECLARE 
+  v_test  BOOLEAN := (1=2);  -- TRUE, FALSE, NULL 데이타 중 하나가 입력가능
+BEGIN 
+  IF v_test THEN 
+     DBMS_OUTPUT.PUT_LINE('V_TEST IS TRUE');
+  ELSIF v_test IS NULL THEN 
+     DBMS_OUTPUT.PUT_LINE('V_TEST IS NULL');
+  ELSE 
+     DBMS_OUTPUT.PUT_LINE('V_TEST IS FALSE');   
+  END IF;
+END;
+
+
+-- 조합 데이타 타입 (RECORD TYPE)
+DECLARE 
+   -- emp_rec_type 이름으로 record data type을 생성 
+   TYPE emp_rec_type is record (empid  employees.employee_id%type, empname employees.last_name%type);
+   v_emp  emp_rec_type;
+BEGIN 
+   SELECT EMPLOYEE_ID, LAST_NAME INTO v_emp
+   FROM EMPLOYEES
+   WHERE EMPLOYEE_ID=201;
+   DBMS_OUTPUT.PUT_LINE('EMPLOYEE_ID => '||v_emp.empid);
+   DBMS_OUTPUT.PUT_LINE('LAST_NAME => '||v_emp.empname);
+END;
+/
+
+-- 조합 데이타 타입 (COLLECTION TYPE(ARRAY;배열)) 
+DECLARE 
+  TYPE ename_table_type IS TABLE OF employees.last_name%TYPE INDEX BY PLS_INTEGER;  -- 배열 데이타
+  v_emp  ename_table_type;  -- 배열 변수 생성 
+BEGIN 
+  SELECT LAST_NAME INTO v_emp(1) 
+  FROM EMPLOYEES 
+  WHERE EMPLOYEE_ID=201;
+  SELECT LAST_NAME INTO v_emp(2) 
+  FROM EMPLOYEES 
+  WHERE EMPLOYEE_ID=202;
+  SELECT LAST_NAME INTO v_emp(3) 
+  FROM EMPLOYEES 
+  WHERE EMPLOYEE_ID=203;
+  FOR I IN 1..3 LOOP 
+    DBMS_OUTPUT.PUT_LINE(v_emp(I));
+  END LOOP;  
+END;
+/
+
+/* 여러 라인으로 주석
+처리 가능
+*/
+-- BIND 변수
+VARIABLE b_result NUMBER
+SET AUTOPRINT OFF
+
+BEGIN
+-- 아래의 내용은 바인드 변수에 조회결과를 넣어주는 문장.
+SELECT (SALARY*12) + NVL(COMMISSION_PCT,0) INTO :b_result
+FROM employees WHERE employee_id = 200;
+END;
+/
+
+PRINT b_result
+
+-- SQL함수를 이용하는 프로그램 
+SET SERVEROUTPUT ON
+
+DECLARE 
+  v_tenure NUMBER(5);
+  v_hiredate  employees.hire_date%type;  --employees 테이블의 hire_date 컬럼의 데이타 타입과 같은 타입을 가지게 한다.
+BEGIN 
+  SELECT HIRE_DATE INTO v_hiredate
+  FROM EMPLOYEES 
+  WHERE EMPLOYEE_ID=201;
+  v_tenure:= MONTHS_BETWEEN (CURRENT_DATE, v_hiredate);
+  DBMS_OUTPUT.PUT_LINE('MONTHS BETWEEN CURRENT DATE AND HIRE DATE => '||v_tenure);
+END;
+/
+  
+-- TO_DATE를 사용하는 예
+ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD';
+
+DECLARE 
+  v_date  DATE := CURRENT_DATE;
+BEGIN 
+  DBMS_OUTPUT.PUT_LINE(v_date);
+END;
+/
+
+DECLARE 
+  v_date  DATE := '2023-11-22';
+BEGIN 
+  DBMS_OUTPUT.PUT_LINE(v_date);
+END;
+/   
+
+DECLARE 
+  v_date  DATE := '11-22-2023';  --기본 날짜형식에 맞지 않게 입력 (X)
+BEGIN 
+  DBMS_OUTPUT.PUT_LINE(v_date);
+END;
+/   
+
+DECLARE 
+  v_date  DATE := TO_DATE('11-22-2023','MM-DD-YYYY'); -- (O)
+BEGIN 
+  DBMS_OUTPUT.PUT_LINE(v_date);
+END;
+/
+
+-- NUMBER(9,2) => 1234567.89
+DECLARE 
+   v_num NUMBER(9,2) := '$123,456.88';  -- (X)
+BEGIN 
+     DBMS_OUTPUT.PUT_LINE(v_num);
+END;
+/
+
+DECLARE 
+   v_num NUMBER(9,2) := TO_NUMBER('$123,456.88','$999,999.99');  -- (X)
+BEGIN 
+     DBMS_OUTPUT.PUT_LINE(v_num);
+END;
+/
+
+-- 중첩블럭 (NESTED BLOCK)
+<<OUTER>>
+DECLARE
+v_father_name VARCHAR2(20):='Patrick';
+v_date_of_birth DATE:='1972-09-22';
+BEGIN
+     <<INNER>>
+     DECLARE
+         v_child_name VARCHAR2(20):='Mike';
+         v_date_of_birth DATE:='2002-12-10';
+     BEGIN
+          DBMS_OUTPUT.PUT_LINE('Father''s Name: '||v_father_name);
+          DBMS_OUTPUT.PUT_LINE('Date of Birth NESTED: '||OUTER.v_date_of_birth);
+          DBMS_OUTPUT.PUT_LINE('Child''s Name: '||v_child_name);
+     END;
+DBMS_OUTPUT.PUT_LINE('Date of Birth: '||v_date_of_birth);
+END;
+/
+
+
+-- 지수연산자 
+DECLARE 
+    v_num NUMBER(10) := 2**4;
+BEGIN 
+    DBMS_OUTPUT.PUT_LINE(v_num);
+END;
+/
+    
+
+-- IS NOT NULL 연산자 사용 예
+DECLARE 
+   valid  BOOLEAN;  -- TRUE, FALSE, NULL
+   empno  NUMBER(10) := NULL;
+BEGIN
+   valid := (empno IS NOT NULL);
+   IF valid THEN 
+      DBMS_OUTPUT.PUT_LINE('valid is TRUE');
+   ELSE 
+      DBMS_OUTPUT.PUT_LINE('valid is FALSE'); 
+   END IF;
+END;
+/
+
+
+DECLARE
+v_fname VARCHAR2(25);
+BEGIN
+  SELECT first_name INTO v_fname
+  FROM employees WHERE employee_id = 200;
+  DBMS_OUTPUT.PUT_LINE(' First Name is : '||v_fname);
+END;
+/
+
+DECLARE
+v_emp_hiredate employees.hire_date%TYPE;
+v_emp_salary employees.salary%TYPE;
+BEGIN
+SELECT hire_date, salary
+INTO v_emp_hiredate, v_emp_salary
+FROM employees
+WHERE employee_id = 200;
+DBMS_OUTPUT.PUT_LINE ('Hire date is :'|| v_emp_hiredate);
+DBMS_OUTPUT.PUT_LINE ('Salary is :'|| v_emp_salary);
+END;
+/
+
+DECLARE
+v_sum_sal NUMBER(10,2);
+v_deptno NUMBER NOT NULL := 30;
+BEGIN
+SELECT SUM(salary) -- group function
+INTO v_sum_sal FROM employees
+WHERE department_id = v_deptno;
+DBMS_OUTPUT.PUT_LINE ('The sum of salary is ' || v_sum_sal);
+END;
+/
+
+
+DECLARE
+v_hire_date employees.hire_date%TYPE;
+v_sysdate v_hire_date%TYPE;
+v_employee_id employees.employee_id%TYPE := 176;
+BEGIN
+SELECT hire_date, sysdate
+INTO v_hire_date, v_sysdate
+FROM employees
+WHERE employee_id = v_employee_id;
+DBMS_OUTPUT.PUT_LINE (v_hire_date||','||v_sysdate);
+END;
+/
+
+-- 커서(CURSOR)는 DB 사용자가 실행하는 각 SQL문장별로  데이타베이스가 운영되는 시스템의 메모리에 생성이 된다. 
+-- 커서를 통해서 실행된 SQL문에 대한 정보(결과)를 저장할 수가 있게 된다. 
+
+CREATE TABLE EMPA (ID NUMBER, NAME VARCHAR2(20));
+
+SET ECHO OFF
+SET VERIFY OFF
+DECLARE
+  v_empid   empa.id%type  := &1;
+  v_name    empa.name%type := '&2';
+BEGIN
+  INSERT INTO EMPA (ID,NAME) VALUES (v_empid, v_name);
+  DBMS_OUTPUT.PUT_LINE (SQL%ROWCOUNT ||' row inserted.');
+END;
+/
+
+SELECT * FROM EMPA;
+        ID NAME                
+---------- --------------------
+       100 JAMES               
+       101 KIM                 
+       102 LEE     
+
+BEGIN
+  UPDATE EMPA SET NAME='PARK' WHERE ID = 101;
+  IF SQL%FOUND THEN -- 101번 사원 데이타를 찾았느냐?
+     DBMS_OUTPUT.PUT_LINE('UPDATED RECORD IS FOUNDED'); 
+     DBMS_OUTPUT.PUT_LINE (SQL%ROWCOUNT||' row UPDATED.');
+  ELSE 
+     DBMS_OUTPUT.PUT_LINE('UPDATED RECORD IS NOT FOUNDED');     
+  END IF;
+END;
+/
+
+BEGIN
+  UPDATE EMPA SET NAME='PARK' WHERE ID = 105;
+  IF SQL%NOTFOUND THEN -- 105번 사원 데이타를  못 찾았느냐?
+     DBMS_OUTPUT.PUT_LINE('UPDATED RECORD IS NOT FOUNDED');  
+  ELSE 
+     DBMS_OUTPUT.PUT_LINE('UPDATED RECORD IS FOUNDED'); 
+     DBMS_OUTPUT.PUT_LINE (SQL%ROWCOUNT||' row UPDATED.');   
+  END IF;
+END;
+/
+
+ROLLBACK;
+SELECT * FROM EMPA;
+
+DECLARE 
+  v_name  VARCHAR2(20);
+BEGIN
+  SELECT NAME INTO v_name FROM EMPA WHERE ID=200;
+  IF SQL%FOUND THEN -- 100번 사원 데이타를 찾았느냐?
+     DBMS_OUTPUT.PUT_LINE('NAME => '||v_name); 
+     DBMS_OUTPUT.PUT_LINE (SQL%ROWCOUNT||' SELECTED.'); 
+  ELSE 
+     DBMS_OUTPUT.PUT_LINE('NO DATA FOUNDED');    
+  END IF;
+END;
+/
+
+-- SELECT 문장의 경우는 만약 검색하는 레코드를 찾지 못했을 경우 SQL%NOTFOUND로 체크할 수 없다 
+DECLARE 
+  v_name  VARCHAR2(20);
+BEGIN
+  SELECT NAME INTO v_name FROM EMPA WHERE ID=200;
+  IF SQL%NOTFOUND THEN -- 200번 사원 데이타를 못 찾았느냐? 
+     DBMS_OUTPUT.PUT_LINE('NO DATA FOUNDED');   
+  ELSE 
+     DBMS_OUTPUT.PUT_LINE('NAME => '||v_name); 
+     DBMS_OUTPUT.PUT_LINE (SQL%ROWCOUNT||' SELECTED.');  
+  END IF;
+END;
+/
+SELECT * FROM EMPA;
+
+        ID NAME                
+---------- --------------------
+       100 JAMES               
+       101 KIM                 
+       102 LEE                 
+
+-- SELECT 문장의 경우는 만약 검색하는 레코드를 찾지 못했을 경우 EXCEPTION으로 CHECK해야 한다.
+DECLARE 
+  v_name  VARCHAR2(20);
+BEGIN
+  SELECT NAME INTO v_name FROM EMPA WHERE ID=200;
+  IF SQL%FOUND THEN -- 200번 사원 데이타를 찾았느냐? 
+     DBMS_OUTPUT.PUT_LINE('NAME => '||v_name); 
+     DBMS_OUTPUT.PUT_LINE (SQL%ROWCOUNT||' SELECTED.');  
+  END IF;
+EXCEPTION  -- 에러 처리하는 부분 
+  WHEN NO_DATA_FOUND THEN -- 위의 SELECT문의 실행 결과 조회되는 데이타 검색이 안되는 경우( 200번 사원을 못 찾았을 경우 처리 )
+     DBMS_OUTPUT.PUT_LINE('NO DATA FOUND');
+END;
+/
+
+-- NULL CHECK
+DECLARE
+v_myage number;
+BEGIN
+IF v_myage < 11 THEN
+   DBMS_OUTPUT.PUT_LINE(' I am a child ');
+ELSIF v_myage IS NULL THEN 
+   DBMS_OUTPUT.PUT_LINE(' MY AGE IS NULL ');  
+ELSE
+   DBMS_OUTPUT.PUT_LINE(' I am not a child ');
+END IF;
+END;
+/
+
+-- CASE EXPRESSION
+
+SET VERIFY OFF
+
+DECLARE
+v_grade CHAR(1) := UPPER('&grade');
+v_appraisal VARCHAR2(20);
+BEGIN
+v_appraisal := CASE v_grade
+WHEN 'A' THEN 'Excellent'
+WHEN 'B' THEN 'Very Good'
+WHEN 'C' THEN 'Good'
+ELSE 'No such grade'
+END;
+DBMS_OUTPUT.PUT_LINE ('Grade: '|| v_grade ||'  '||'Appraisal : ' || v_appraisal);
+END;
+/
+
+-- CASE STATEMENT 
+DECLARE
+v_deptid NUMBER;
+v_deptname VARCHAR2(20);
+v_emps NUMBER;
+v_mngid NUMBER:= &1;
+BEGIN
+CASE v_mngid
+WHEN 108 THEN
+SELECT department_id, department_name INTO v_deptid, v_deptname FROM departments WHERE manager_id=108;
+SELECT count(*) INTO v_emps FROM employees WHERE department_id=v_deptid;
+WHEN 200 THEN
+SELECT department_id, department_name INTO v_deptid, v_deptname FROM departments WHERE manager_id=200;
+SELECT count(*) INTO v_emps FROM employees WHERE department_id=v_deptid;
+END CASE;
+DBMS_OUTPUT.PUT_LINE ('You are working in the '|| v_deptname||' department. There are '||v_emps ||' employees in this department');
+END;
+/
+
+
+PLSQL BOOLEAN DATATYPE (TRUE, FALSE, NULL)
+
+DECLARE 
+   v_a  BOOLEAN := NOT (1=2) OR NULL ;
+BEGIN 
+IF v_a THEN  
+    DBMS_OUTPUT.PUT_LINE('TRUE');
+ELSIF v_a IS NULL THEN 
+    DBMS_OUTPUT.PUT_LINE('NULL');
+ELSE 
+    DBMS_OUTPUT.PUT_LINE('FALSE');
+END IF;
+END;
+/
+
+-- LOOP 문 
+-- 기본 LOOP
+LOOP
+statement1;
+. . .
+EXIT [WHEN condition];
+END LOOP;
+
+DECLARE 
+   v_loop  number := 0;
+BEGIN 
+  LOOP 
+    DBMS_OUTPUT.PUT_LINE('BASIC LOOP');
+    v_loop := v_loop + 1;
+  EXIT WHEN v_loop >= 5;
+  END LOOP;
+END;
+/
+
+-- FOR LOOP
+FOR counter IN [REVERSE]
+lower_bound..upper_bound LOOP
+statement1;
+statement2;
+. . .
+END LOOP;
+
+
+BEGIN 
+  FOR v_loop IN  1..5 LOOP 
+--    v_loop := 3;  (x)
+    DBMS_OUTPUT.PUT_LINE('BASIC LOOP '||' v_loop=> '||v_loop);
+    EXIT WHEN v_loop =3;
+  END LOOP;
+END;
+/
+
+BEGIN 
+  FOR v_loop IN REVERSE  1..5 LOOP 
+    DBMS_OUTPUT.PUT_LINE('BASIC LOOP '||' v_loop=> '||v_loop);
+  END LOOP;
+END;
+/
+
+BEGIN 
+  FOR v_loop IN -2..5 LOOP 
+    DBMS_OUTPUT.PUT_LINE('BASIC LOOP '||' v_loop=> '||v_loop);
+  END LOOP;
+END;
+/
+
+-- WHILE 루프
+WHILE condition LOOP
+statement1;
+statement2;
+. . .
+END LOOP;
+
+DECLARE 
+   v_loop  number := 0;
+BEGIN 
+  WHILE v_loop <= 5 LOOP 
+    v_loop := v_loop + 1;
+    DBMS_OUTPUT.PUT_LINE('BASIC LOOP '||' v_loop=> '||v_loop);
+  END LOOP;
+END;
+/
+
+-- 중첩 루프 
+DECLARE 
+   v_counter  NUMBER := 0;
+   done  VARCHAR2(10) := 'YES';
+BEGIN
+   <<Outer_loop>>
+    LOOP
+       v_counter := v_counter+1;
+       DBMS_OUTPUT.PUT_LINE('OUTER loop');
+       EXIT WHEN v_counter > 3;
+         <<Inner_loop>>
+          LOOP
+             DBMS_OUTPUT.PUT_LINE('INNER loop');
+             EXIT Outer_loop WHEN done = 'YES';
+             EXIT WHEN done = 'NO';
+          END LOOP Inner_loop;
+    END LOOP Outer_loop;
+END;
+/
+
+-- CONTINUE 문 
+DECLARE
+   v_total SIMPLE_INTEGER := 0;
+BEGIN
+   FOR i IN 1..5 LOOP
+        v_total := v_total + i;
+        dbms_output.put_line('Total is: ' || v_total);
+        
+        CONTINUE WHEN i > 3;
+        v_total := v_total + i;
+        dbms_output.put_line('Out of Loop Total is: '|| v_total);
+   END LOOP;
+END;
+/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+  
+  
+  
+  
+
+
