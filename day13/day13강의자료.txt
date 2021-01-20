@@ -1,0 +1,577 @@
+-- RECORD DATA TYPE에 대한 예제
+SET SERVEROUTPUT ON
+
+DECLARE  -- ANONYMOUS PLSQL BLOCK
+   -- EMP_RECORD 이름의 RECORD DATA TYPE을 생성
+   TYPE EMP_RECORD IS RECORD 
+   (emp_id number(6), emp_name varchar2(25), emp_job varchar2(10));
+   
+   v_emp  EMP_RECORD; -- EMP_RECORD DATATYPE을 가지는 v_emp 레코드 변수 생성.
+BEGIN 
+   -- 201번 사원의 정보를 v_emp 레코드 변수에 입력
+   SELECT EMPLOYEE_ID, LAST_NAME, JOB_ID 
+   INTO v_emp 
+   FROM EMPLOYEES
+   WHERE EMPLOYEE_ID=201;
+   
+   DBMS_OUTPUT.PUT_LINE('EMPLOYEE_ID => '||v_emp.emp_id);
+   DBMS_OUTPUT.PUT_LINE('LAST_NAME => '||v_emp.emp_name);   
+   DBMS_OUTPUT.PUT_LINE('JOB ID => '||v_emp.emp_job);
+END;
+/
+
+DESC EMPLOYEES
+
+DECLARE  -- ANONYMOUS PLSQL BLOCK
+   v_emp  employees%rowtype; -- employees table이 현재 가지고 있는 column들의 구조를 copy해서 v_emp 레코드 변수 생성.
+BEGIN 
+   -- 201번 사원의 정보를 v_emp 레코드 변수에 입력
+   SELECT * 
+   INTO v_emp 
+   FROM EMPLOYEES
+   WHERE EMPLOYEE_ID=201;
+   
+   DBMS_OUTPUT.PUT_LINE('EMPLOYEE_ID => '||v_emp.employee_id);
+   DBMS_OUTPUT.PUT_LINE('LAST_NAME => '||v_emp.last_name);   
+   DBMS_OUTPUT.PUT_LINE('JOB ID => '||v_emp.job_id);
+END;
+/
+
+ALTER SESSION SET NLS_DATE_FORMAT='YYYY-MM-DD';
+
+DECLARE
+TYPE t_rec IS RECORD
+(v_sal number(8),
+v_minsal number(8) default 1000,
+v_hire_date employees.hire_date%type,
+v_rec1 employees%rowtype);
+v_myrec t_rec;
+BEGIN
+v_myrec.v_sal := v_myrec.v_minsal + 500;
+v_myrec.v_hire_date := sysdate;
+SELECT * INTO v_myrec.v_rec1
+FROM employees WHERE employee_id = 100;
+DBMS_OUTPUT.PUT_LINE(v_myrec.v_rec1.last_name ||' '||
+to_char(v_myrec.v_hire_date) ||' '|| to_char(v_myrec.v_sal));
+END;
+/
+
+
+create table retired_emps 
+as select employee_id empno,last_name ename, job_id job, manager_id mgr,hire_date hiredate,SYSDATE leavedate,
+salary sal, commission_pct comm, department_id deptno
+FROM employees WHERE 1=2;  -- EMPLOYEES 테이블의 column의 구조만 copy해서 retired_emps 테이블 생성
+
+DESC RETIRED_EMPS
+SELECT * FROM EMPLOYEES WHERE EMPLOYEE_ID=201;
+
+-- 124번 사원의 레코드를 EMPLOYEES테이블에서 조회해서 RETIRED_EMPS 테이블에 입력을 해 주는 프로그램
+DECLARE
+v_employee_number number:= 124;
+v_emp_rec employees%ROWTYPE;
+BEGIN
+SELECT * INTO v_emp_rec FROM employees
+WHERE employee_id = v_employee_number;
+INSERT INTO retired_emps(empno, ename, job, mgr,hiredate, leavedate, sal, comm, deptno)
+VALUES (v_emp_rec.employee_id, v_emp_rec.last_name,v_emp_rec.job_id, v_emp_rec.manager_id,
+v_emp_rec.hire_date, SYSDATE,v_emp_rec.salary, v_emp_rec.commission_pct,v_emp_rec.department_id);
+END;
+/
+
+SELECT * FROM RETIRED_EMPS;
+
+DECLARE
+v_employee_number number:= 201;
+v_emp_rec retired_emps%ROWTYPE;
+BEGIN
+SELECT employee_id, last_name, job_id, manager_id,
+hire_date, hire_date, salary, commission_pct,
+department_id INTO v_emp_rec FROM employees
+WHERE employee_id = v_employee_number;
+INSERT INTO retired_emps VALUES v_emp_rec;
+END;
+/
+SELECT * FROM retired_emps;
+
+DECLARE
+v_employee_number number:= 124;
+v_emp_rec retired_emps%ROWTYPE;
+BEGIN
+SELECT * INTO v_emp_rec FROM retired_emps WHERE
+empno = v_employee_number;
+v_emp_rec.leavedate:=CURRENT_DATE;
+UPDATE retired_emps SET ROW = v_emp_rec WHERE
+empno=v_employee_number;
+END;
+/
+
+SELECT * FROM retired_emps;
+
+-- 연관 배열 (ASSOCIATIVE ARRAY)
+
+DECLARE
+TYPE ename_table_type IS TABLE OF employees.last_name%TYPE INDEX BY PLS_INTEGER;
+TYPE hiredate_table_type IS TABLE OF DATE INDEX BY PLS_INTEGER;
+ename_table ename_table_type;
+hiredate_table hiredate_table_type;
+BEGIN
+ename_table(1) := 'CAMERON1';
+ename_table(2) := 'CAMERON2';
+ename_table(3) := 'CAMERON3';
+DBMS_OUTPUT.PUT_LINE ('ENAME_TABLE(1)=> '||ename_table(1));
+DBMS_OUTPUT.PUT_LINE ('ENAME_TABLE(2)=> '||ename_table(2));
+DBMS_OUTPUT.PUT_LINE ('ENAME_TABLE(3)=> '||ename_table(3));
+END;
+/
+
+DECLARE
+TYPE ename_table_type IS TABLE OF employees.last_name%TYPE INDEX BY PLS_INTEGER;
+ename_table ename_table_type;
+BEGIN
+-- 200번 사원부터 204번 사원의 LAST_NAME을 FOR LOOP를 이용해서 조회하고 그 결과를 ENAME 배열변수에 입력
+-- 200번 사원의 LAST_NAME은 ENAME배열변수의 200번자리에 입력이 되고 
+-- 201번 사원의 LAST_NAME은 ENAME배열변수의 201번자리에 입력이 된다.
+FOR J IN 200..204 LOOP
+  SELECT LAST_NAME INTO ENAME_TABLE(J) FROM EMPLOYEES WHERE EMPLOYEE_ID = J;
+END LOOP;
+-- ENAME 배열변수안에 있는 첫번째 데이타부터 마지막 데이타까지를 차례대로 읽어서 프린트해라 
+FOR H IN ENAME_TABLE.FIRST..ENAME_TABLE.LAST LOOP
+  DBMS_OUTPUT.PUT_LINE('ENAME_TABLE '||H||'=> '||ENAME_TABLE(H));
+END LOOP;
+END;
+/
+
+-- rowtype을 배열변수에서 사용하는 예
+DECLARE
+TYPE emp_table_type IS TABLE OF employees%ROWTYPE INDEX BY PLS_INTEGER;
+emp_table emp_table_type;
+BEGIN
+-- 200번 사원부터 204번 사원의 RECORD 전체 데이타를 FOR LOOP를 이용해서 조회하고 그 결과를 emp_table 배열변수에 입력
+-- 200번 사원의 RECORD 전체 데이타가 emp_table 배열변수의 200번자리에 입력이 되고 
+-- 201번 사원의 RECORD 전체 데이타가  emp_table 배열변수의 201번자리에 입력이 된다.
+FOR J IN 200..204 LOOP
+  SELECT * INTO emp_table(J) FROM EMPLOYEES WHERE EMPLOYEE_ID = J;
+END LOOP;
+-- EXISTS 메소드 사용 예
+IF emp_table.EXISTS(202) THEN   -- 202번 자리에 데이타가 있느냐? 
+   DBMS_OUTPUT.PUT_LINE(' DATA FOUNDED');
+END IF;   
+-- emp_table 배열변수안에 있는 첫번째 데이타부터 마지막 데이타까지를 차례대로 읽어서 프린트해라 
+FOR H IN emp_table.FIRST..emp_table.LAST LOOP
+  DBMS_OUTPUT.PUT_LINE('emp_table '||H||'=> '||emp_table(H).EMPLOYEE_ID||' '||emp_table(H).LAST_NAME);
+END LOOP;
+END;
+/
+
+
+DECLARE
+TYPE emp_table_type IS TABLE OF employees%ROWTYPE INDEX BY PLS_INTEGER;
+emp_table emp_table_type;
+BEGIN
+-- 200번 사원부터 204번 사원의 RECORD 전체 데이타를 FOR LOOP를 이용해서 조회하고 그 결과를 emp_table 배열변수에 입력
+-- 200번 사원의 RECORD 전체 데이타가 emp_table 배열변수의 200번자리에 입력이 되고 
+-- 201번 사원의 RECORD 전체 데이타가  emp_table 배열변수의 201번자리에 입력이 된다.
+FOR J IN 200..204 LOOP
+  SELECT * INTO emp_table(J) FROM EMPLOYEES WHERE EMPLOYEE_ID = J;
+END LOOP;
+-- EXISTS 메소드 사용 예
+IF emp_table.EXISTS(204) THEN   -- 202번 자리에 데이타가 있느냐? 
+   DBMS_OUTPUT.PUT_LINE(' DATA FOUNDED');
+ELSE 
+   DBMS_OUTPUT.PUT_LINE(' DATA CANNNOT FOUND'); 
+END IF;   
+END;
+/
+
+DECLARE
+TYPE ename_table_type IS TABLE OF employees.last_name%TYPE INDEX BY PLS_INTEGER;
+ename_table ename_table_type;
+BEGIN
+-- 200번 사원부터 204번 사원의 LAST_NAME을 FOR LOOP를 이용해서 조회하고 그 결과를 ENAME 배열변수에 입력
+-- 200번 사원의 LAST_NAME은 ENAME배열변수의 200번자리에 입력이 되고 
+-- 201번 사원의 LAST_NAME은 ENAME배열변수의 201번자리에 입력이 된다.
+FOR J IN 200..204 LOOP
+  SELECT LAST_NAME INTO ENAME_TABLE(J) FROM EMPLOYEES WHERE EMPLOYEE_ID = J;
+END LOOP;
+-- ENAME 배열변수안에 있는 첫번째 데이타부터 마지막 데이타까지를 차례대로 읽어서 프린트해라 
+FOR H IN ENAME_TABLE.FIRST..ENAME_TABLE.LAST LOOP
+  DBMS_OUTPUT.PUT_LINE('ENAME_TABLE '||H||'=> '||ENAME_TABLE(H));
+END LOOP;
+END;
+/
+
+-- rowtype을 배열변수에서 사용하는 예
+DECLARE
+TYPE emp_table_type IS TABLE OF employees%ROWTYPE INDEX BY PLS_INTEGER;
+emp_table emp_table_type;
+BEGIN
+-- 200번 사원부터 204번 사원의 RECORD 전체 데이타를 FOR LOOP를 이용해서 조회하고 그 결과를 emp_table 배열변수에 입력
+-- 200번 사원의 RECORD 전체 데이타가 emp_table 배열변수의 200번자리에 입력이 되고 
+-- 201번 사원의 RECORD 전체 데이타가  emp_table 배열변수의 201번자리에 입력이 된다.
+FOR J IN 200..204 LOOP
+  SELECT * INTO emp_table(J) FROM EMPLOYEES WHERE EMPLOYEE_ID = J;
+END LOOP;
+-- EXISTS 메소드 사용 예
+IF emp_table.EXISTS(202) THEN   -- 202번 자리에 데이타가 있느냐? 
+   DBMS_OUTPUT.PUT_LINE(' DATA FOUNDED');
+END IF;   
+-- emp_table 배열변수안에 있는 첫번째 데이타부터 마지막 데이타까지를 차례대로 읽어서 프린트해라 
+FOR H IN emp_table.FIRST..emp_table.LAST LOOP
+  DBMS_OUTPUT.PUT_LINE('emp_table '||H||'=> '||emp_table(H).EMPLOYEE_ID||' '||emp_table(H).LAST_NAME);
+END LOOP;
+END;
+/
+
+
+DECLARE
+TYPE emp_table_type IS TABLE OF employees%ROWTYPE INDEX BY PLS_INTEGER;
+emp_table emp_table_type;
+BEGIN
+-- 200번 사원부터 204번 사원의 RECORD 전체 데이타를 FOR LOOP를 이용해서 조회하고 그 결과를 emp_table 배열변수에 입력
+-- 200번 사원의 RECORD 전체 데이타가 emp_table 배열변수의 200번자리에 입력이 되고 
+-- 201번 사원의 RECORD 전체 데이타가  emp_table 배열변수의 201번자리에 입력이 된다.
+FOR J IN 200..204 LOOP
+  SELECT * INTO emp_table(J) FROM EMPLOYEES WHERE EMPLOYEE_ID = J;
+END LOOP;
+  -- emp_table.delete(201);  -- 201번 자리(인덱스)에 있는 데이타가 삭제되고 NULL 상태가 된다. 
+  DBMS_OUTPUT.PUT_LINE(emp_table.prior(202)); -- 202번 자리를 기준으로 위에 있는 자리중에 데이타를 가지고 있는 첫번째 자리(인덱스) 검색
+  DBMS_OUTPUT.PUT_LINE(emp_table.next(202)); -- 202번 자리를 기준으로 아래에 있는 자리중에 데이타를 가지고 있는 첫번째 자리(인덱스) 검색
+  DBMS_OUTPUT.PUT_LINE(emp_table.count); -- emp_table배열변수안에 데이타를 가지고 있는 자리가 몇개가 있는지 확인
+END;
+/
+
+
+DECLARE
+TYPE emp_table_type IS TABLE OF employees%ROWTYPE INDEX BY PLS_INTEGER;
+emp_table emp_table_type;
+BEGIN
+-- 200번 사원부터 204번 사원의 RECORD 전체 데이타를 FOR LOOP를 이용해서 조회하고 그 결과를 emp_table 배열변수에 입력
+-- 200번 사원의 RECORD 전체 데이타가 emp_table 배열변수의 200번자리에 입력이 되고 
+-- 201번 사원의 RECORD 전체 데이타가  emp_table 배열변수의 201번자리에 입력이 된다.
+FOR J IN 200..204 LOOP
+  SELECT * INTO emp_table(J) FROM EMPLOYEES WHERE EMPLOYEE_ID = J;
+END LOOP;
+emp_table.delete(201);
+FOR H IN emp_table.FIRST..emp_table.LAST LOOP
+  IF emp_table.EXISTS(H) THEN -- emp_table 배열변수안에 데이타를 가지고 있는 자리에 있는 데이타만 프린트해라 
+                               -- 데이타가 삭제된 201번자리의 경우는 SKIP하게 된다.
+    DBMS_OUTPUT.PUT_LINE('emp_table '||H||'=> '||emp_table(H).EMPLOYEE_ID||' '||emp_table(H).LAST_NAME);
+  END IF;
+END LOOP;
+END;
+/
+
+-- 중첩테이블 (NESTED TABLE)방식의 배열타입 사용
+DECLARE
+TYPE location_type IS TABLE OF locations.city%TYPE;
+offices location_type;
+table_count NUMBER;
+BEGIN
+offices := location_type('Bombay', 'Tokyo','Singapore',
+'Oxford');
+FOR i in 1.. offices.count() LOOP
+DBMS_OUTPUT.PUT_LINE(offices(i));
+END LOOP;
+END;
+/
+
+-- VARRAY DATA TYPE  -- 배열안에 들어갈 수 있는 최대 자릿수를 미리 정해 놓고 작업
+DECLARE
+TYPE location_type IS VARRAY(3) OF locations.city%TYPE;
+offices location_type;
+table_count NUMBER;
+BEGIN
+offices := location_type('Bombay', 'Tokyo','Singapore','Oxford');  -- 4개의 데이타는 못 들어간다. MAX SIZE는 3이기 때문에.
+FOR i in 1.. offices.count() LOOP
+DBMS_OUTPUT.PUT_LINE(offices(i));
+END LOOP;
+END;
+/
+
+
+-- 명시적 커서 (EXPLICIT CURSOR) 에 대해서 
+-- PLSQL 프로그램에서는
+SET SERVEROUTPUT ON  -- DBMS_OUTPUT.PUT_LINE 을 사용해서 결과를 프린트 할 수 있는 환경 셋업 
+
+DECLARE 
+    v_name  VARCHAR2(20);
+BEGIN 
+    SELECT LAST_NAME INTO v_name          -- 하나의 레코드만 처리할 수 있다.
+    FROM EMPLOYEES WHERE EMPLOYEE_ID=200;
+    DBMS_OUTPUT.PUT_LINE(v_name);
+END;
+/
+
+DECLARE 
+    v_name  VARCHAR2(20);
+BEGIN 
+    SELECT LAST_NAME INTO v_name          -- 여러개의 레코드만 처리할 수 없다.
+    FROM EMPLOYEES WHERE EMPLOYEE_ID IN (200,201);
+    DBMS_OUTPUT.PUT_LINE(v_name);
+END;
+/
+
+
+-- 명시적 커서를 사용하면 PLSQL프로그램 안에서도 여러개의 레코드를 처리할 수 있게 된다. 
+
+DECLARE 
+  CURSOR C1 IS SELECT * FROM EMPLOYEES WHERE DEPARTMENT_ID=80;  -- 1. C1 이라는 이름으로 명시적 커서 정의
+  v_emp_out  C1%ROWTYPE;  -- v_emp_out 변수는 C1이 포함하고 있는 SELECT문의 실행결과(RECORD) 전체를 받을 수 있는 레코드 변수 생성
+BEGIN 
+  OPEN C1;  -- 2. C1이 포함하고 있는 SELECT문을 COMPILE해서 실행할 수 있는 코드로 생성 
+  LOOP 
+    FETCH  C1 INTO v_emp_out;   -- 3. C1이 포함하고 있는 SELECT문을 실행시켜서 데이타를 조회
+    DBMS_OUTPUT.PUT_LINE(v_emp_out.employee_id||' '||v_emp_out.last_name||' '||v_emp_out.department_id);
+  EXIT WHEN C1%NOTFOUND;  -- C1이 포함하고 있는 SELECT문에 의해 EMPLOYEES 테이블의 모든 데이타를 조회해서 더이상 조회할 데이타가 없을 때까지
+  END LOOP;
+  CLOSE C1; -- 4. C1 커서를 닫아서 조회작업 마감.
+END;
+/
+
+DECLARE 
+  CURSOR C1 IS SELECT * FROM EMPLOYEES WHERE DEPARTMENT_ID=30;  -- 1. C1 이라는 이름으로 명시적 커서 정의
+BEGIN 
+  FOR J IN C1 LOOP  -- 2. C1이 포함하고 있는 SELECT문을 COMPILE해서 실행할 수 있는 코드로 생성하고 
+                    --    J 변수는 C1이 포함하고 있는 SELECT문의 실행결과(RECORD) 전체를 받을 수 있는 레코드 변수 생성
+                    --  3. C1이 포함하고 있는 SELECT문을 실행시켜서 데이타를 J 변수에 넣어준다. 
+    DBMS_OUTPUT.PUT_LINE(J.employee_id||' '||J.last_name||' '||J.department_id); 
+  END LOOP;    --  4. C1이 포함하고 있는 SELECT문에 의해 EMPLOYEES 테이블의 모든 데이타를 조회해서 더이상 조회할 데이타가 없는것을 
+               --  자동 CHECK하고 C1 커서를 닫아서 조회작업 마감.
+END;
+/
+
+-- 명시적 커서 (EXPLICIT CURSOR) 에 대해서 
+-- PLSQL 프로그램에서는
+SET SERVEROUTPUT ON  -- DBMS_OUTPUT.PUT_LINE 을 사용해서 결과를 프린트 할 수 있는 환경 셋업 
+
+DECLARE 
+    v_name  VARCHAR2(20);
+BEGIN 
+    SELECT LAST_NAME INTO v_name          -- 하나의 레코드만 처리할 수 있다.
+    FROM EMPLOYEES WHERE EMPLOYEE_ID=200;
+    DBMS_OUTPUT.PUT_LINE(v_name);
+END;
+/
+
+DECLARE 
+    v_name  VARCHAR2(20);
+BEGIN 
+    SELECT LAST_NAME INTO v_name          -- 여러개의 레코드만 처리할 수 없다.
+    FROM EMPLOYEES WHERE EMPLOYEE_ID IN (200,201);
+    DBMS_OUTPUT.PUT_LINE(v_name);
+END;
+/
+
+
+-- 명시적 커서를 사용하면 PLSQL프로그램 안에서도 여러개의 레코드를 처리할 수 있게 된다. 
+
+DECLARE 
+  CURSOR C1 IS SELECT * FROM EMPLOYEES WHERE DEPARTMENT_ID=80;  -- 1. C1 이라는 이름으로 명시적 커서 정의
+  v_emp_out  C1%ROWTYPE;  -- v_emp_out 변수는 C1이 포함하고 있는 SELECT문의 실행결과(RECORD) 전체를 받을 수 있는 레코드 변수 생성
+BEGIN 
+  OPEN C1;  -- 2. C1이 포함하고 있는 SELECT문을 COMPILE해서 실행할 수 있는 코드로 생성 
+  LOOP 
+    FETCH  C1 INTO v_emp_out;   -- 3. C1이 포함하고 있는 SELECT문을 실행시켜서 데이타를 조회
+    DBMS_OUTPUT.PUT_LINE(v_emp_out.employee_id||' '||v_emp_out.last_name||' '||v_emp_out.department_id);
+  EXIT WHEN C1%NOTFOUND;  -- C1이 포함하고 있는 SELECT문에 의해 EMPLOYEES 테이블의 모든 데이타를 조회해서 더이상 조회할 데이타가 없을 때까지
+  END LOOP;
+  CLOSE C1; -- 4. C1 커서를 닫아서 조회작업 마감.
+END;
+/
+
+DECLARE 
+  CURSOR C1 IS SELECT * FROM EMPLOYEES WHERE DEPARTMENT_ID=30;  -- 1. C1 이라는 이름으로 명시적 커서 정의
+BEGIN 
+  FOR J IN C1 LOOP  -- 2. C1이 포함하고 있는 SELECT문을 COMPILE해서 실행할 수 있는 코드로 생성하고 
+                    --    J 변수는 C1이 포함하고 있는 SELECT문의 실행결과(RECORD) 전체를 받을 수 있는 레코드 변수 생성
+                    --  3. C1이 포함하고 있는 SELECT문을 실행시켜서 데이타를 J 변수에 넣어준다. 
+    DBMS_OUTPUT.PUT_LINE(J.employee_id||' '||J.last_name||' '||J.department_id); 
+  END LOOP;    --  4. C1이 포함하고 있는 SELECT문에 의해 EMPLOYEES 테이블의 모든 데이타를 조회해서 더이상 조회할 데이타가 없는것을 
+               --  자동 CHECK하고 C1 커서를 닫아서 조회작업 마감.
+END;
+/
+
+
+DECLARE
+CURSOR c_emp_cursor IS SELECT employee_id, last_name FROM employees where department_id=30;
+v_emp_record c_emp_cursor%ROWTYPE;
+BEGIN
+OPEN c_emp_cursor;
+LOOP
+FETCH c_emp_cursor INTO v_emp_record;
+-- DBMS_OUTPUT.PUT_LINE(' Rowcount=> '||c_emp_cursor%ROWCOUNT||' '|| v_emp_record.employee_id||' '||v_emp_record.last_name);
+EXIT WHEN c_emp_cursor%ROWCOUNT > 4 OR c_emp_cursor%NOTFOUND;
+DBMS_OUTPUT.PUT_LINE(' Rowcount=> '||c_emp_cursor%ROWCOUNT||' '|| v_emp_record.employee_id||' '||v_emp_record.last_name);
+END LOOP;
+CLOSE c_emp_cursor;
+END;
+/
+
+DECLARE
+CURSOR c_emp_cursor(p_deptno number,p_job VARCHAR2) IS 
+       SELECT employee_id, last_name, department_id, job_id FROM employees where department_id=p_deptno and job_id like p_job;
+v_emp_record c_emp_cursor%ROWTYPE;
+BEGIN
+ OPEN c_emp_cursor(p_deptno=>80,p_job=>'%REP%');
+-- OPEN c_emp_cursor(50);
+LOOP
+FETCH c_emp_cursor INTO v_emp_record;
+-- DBMS_OUTPUT.PUT_LINE(' Rowcount=> '||c_emp_cursor%ROWCOUNT||' '|| v_emp_record.employee_id||' '||v_emp_record.department_id);
+EXIT WHEN c_emp_cursor%ROWCOUNT > 10 OR c_emp_cursor%NOTFOUND;
+DBMS_OUTPUT.PUT_LINE(' Rowcount=> '||c_emp_cursor%ROWCOUNT||' '|| v_emp_record.employee_id||' '||v_emp_record.department_id);
+END LOOP;
+CLOSE c_emp_cursor;
+END;
+/
+
+
+DECLARE
+CURSOR c_emp_cursor(p_deptno number,p_job VARCHAR2) IS 
+       SELECT employee_id, last_name, department_id, job_id FROM employees where department_id=p_deptno and job_id like p_job;
+v_emp_record c_emp_cursor%ROWTYPE;
+BEGIN
+ OPEN c_emp_cursor(p_deptno=>80,p_job=>'%REP%');
+-- OPEN c_emp_cursor(50);
+LOOP
+FETCH c_emp_cursor INTO v_emp_record;
+-- DBMS_OUTPUT.PUT_LINE(' Rowcount=> '||c_emp_cursor%ROWCOUNT||' '|| v_emp_record.employee_id||' '||v_emp_record.department_id);
+EXIT WHEN c_emp_cursor%ROWCOUNT > 10 OR c_emp_cursor%NOTFOUND;
+DBMS_OUTPUT.PUT_LINE(' Rowcount=> '||c_emp_cursor%ROWCOUNT||' '|| v_emp_record.employee_id||' '||v_emp_record.department_id);
+END LOOP;
+CLOSE c_emp_cursor;
+END;
+/
+
+-- PROGRAM CALL 예제 1
+CREATE OR REPLACE FUNCTION SUB_FUNC
+RETURN NUMBER
+IS 
+BEGIN 
+   RETURN(1000);
+END;
+/
+CREATE OR REPLACE FUNCTION SUB_FUNC2(P_NAME VARCHAR2)
+RETURN VARCHAR2
+IS 
+BEGIN 
+   RETURN(UPPER(P_NAME));
+END;
+/
+CREATE OR REPLACE PROCEDURE SUB_PRO (P_DEPTNO IN NUMBER, P_NAME OUT VARCHAR2) -- 파라미터가 있는 프로그램
+IS
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('P_DEPTNO => '||P_DEPTNO);
+  SELECT DEPARTMENT_NAME INTO P_NAME FROM DEPARTMENTS WHERE DEPARTMENT_ID=P_DEPTNO;
+  DBMS_OUTPUT.PUT_LINE('P_NAME => '||P_NAME);  
+  DBMS_OUTPUT.PUT_LINE('THIS IS SUB PROGRAM'||' '||SUB_FUNC);
+END;
+/
+CREATE OR REPLACE PROCEDURE MAIN 
+IS 
+  V_DEPTNAME VARCHAR2(20);
+BEGIN 
+  DBMS_OUTPUT.PUT_LINE('THIS IS MAIN PROGRAM');   
+  SUB_PRO(20,V_DEPTNAME);
+  DBMS_OUTPUT.PUT_LINE('DEPARTMENT NAME => '||SUB_FUNC2(V_DEPTNAME));  
+END;
+/
+
+EXEC MAIN
+
+
+-- PROGRAM CALL 예제 2
+
+CREATE OR REPLACE FUNCTION SUB_FUNC
+RETURN NUMBER
+IS 
+BEGIN 
+   RETURN(1000);
+END;
+/
+CREATE OR REPLACE FUNCTION SUB_FUNC2(P_NAME VARCHAR2)
+RETURN VARCHAR2
+IS 
+BEGIN 
+   RETURN(LOWER(P_NAME));
+END;
+/
+CREATE OR REPLACE PROCEDURE SUB_PRO (P_DEPTNO IN NUMBER) -- 파라미터가 있는 프로그램
+IS
+  CURSOR C1 IS SELECT * FROM EMPLOYEES WHERE DEPARTMENT_ID=P_DEPTNO;
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('P_DEPTNO => '||P_DEPTNO);
+  FOR J IN C1 LOOP
+        DBMS_OUTPUT.PUT_LINE(J.EMPLOYEE_ID||' '||SUB_FUNC2(J.LAST_NAME)||' '||J.DEPARTMENT_ID);
+  END LOOP;
+END;
+/
+CREATE OR REPLACE PROCEDURE MAIN 
+IS 
+  V_DEPTNAME VARCHAR2(20);
+BEGIN 
+  DBMS_OUTPUT.PUT_LINE('THIS IS MAIN PROGRAM');   
+  SUB_PRO(P_DEPTNO=>30);
+END;
+/
+
+EXEC MAIN
+
+
+-- EXCEPTION 예제 
+CREATE OR REPLACE PROCEDURE EXCEPT_SUB
+IS
+  A  EXCEPTION;  --EXCEPTION은 예외사항 (오류, 에러로 처리하고 싶은 내용)
+BEGIN 
+   DBMS_OUTPUT.PUT_LINE('SUB PROGRAM');
+   IF (1=1) THEN  RAISE A;  END IF;  -- RAISE는 강제로 EXCEPTION(사용자가 정의한 오류)을 발생시켜라 
+   DBMS_OUTPUT.PUT_LINE('END SUB PROGRAM');
+EXCEPTION 
+  WHEN A THEN 
+    DBMS_OUTPUT.PUT_LINE('A ERROR ');
+END;
+/
+CREATE OR REPLACE PROCEDURE EXCEPT_MAIN
+IS
+BEGIN 
+  DBMS_OUTPUT.PUT_LINE('MAIN PROGRAM');
+  EXCEPT_SUB;
+  DBMS_OUTPUT.PUT_LINE('END MAIN PROGRAM'); 
+END;
+/
+
+EXEC EXCEPT_MAIN
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
