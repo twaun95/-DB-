@@ -1,6 +1,6 @@
 # -DB-
 
-#1개발환경
+#개발환경
 -database실습
 oracle database 11.2.0
 sqldeveloper
