@@ -19,10 +19,12 @@
 - jupyter Notebook
 
 ---
-***
-___
+
 #### Day 1~13
 * SQL
 
 #### Day 14~15
 * R programming
+
+### Day 16~
+* Python programming
