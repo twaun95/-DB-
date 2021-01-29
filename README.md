@@ -18,8 +18,10 @@
 - Anaconda3 2020.02
 - jupyter Notebook
 
-#### Day1~13
+---
+
+#### Day 1~13
 * SQL
 
-#### Day14~15
+#### Day 14~15
 * R programming
