@@ -27,5 +27,18 @@
 ### Day 14~15
 * R programming
 
-### Day 16~
+### Day 16~20
 * Python programming
+* Crawling
+
+### Day 21~25
+* Django Framework
+
+### Day 26~
+* Project
+
+---
+
+
+
+
