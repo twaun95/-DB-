@@ -23,20 +23,20 @@
 
 ### 학습과정
 
-## Day 1~13
+#### Day 1~13
 * SQL
 
-## Day 14~15
+#### Day 14~15
 * R programming
 
-## Day 16~20
+#### Day 16~20
 * Python programming
 * Crawling
 
-## Day 21~25
+#### Day 21~25
 * Django Framework
 
-## Day 26~
+#### Day 26~
 * Project
 
 ---
