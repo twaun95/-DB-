@@ -17,6 +17,7 @@
 - python 3.7.6
 - Anaconda3 2020.02
 - jupyter Notebook
+- Django Framework
 
 ---
 
